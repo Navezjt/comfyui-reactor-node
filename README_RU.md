@@ -2,7 +2,12 @@
 
   <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/ReActor_logo_red.png?raw=true" alt="logo" width="180px"/>
 
-  ![Version](https://img.shields.io/badge/версия_нода-0.3.0_beta3-green?style=for-the-badge&labelColor=darkgreen)<hr>
+  ![Version](https://img.shields.io/badge/версия_нода-0.3.0-brightgreen?style=for-the-badge&labelColor=darkgreen)
+  
+  <a href='https://ko-fi.com/gourieff' target='_blank'><img height='33' src='https://storage.ko-fi.com/cdn/kofi3.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
+  <hr>
+  
   [![Commit activity](https://img.shields.io/github/commit-activity/t/Gourieff/comfyui-reactor-node/main?cacheSeconds=0)](https://github.com/Gourieff/comfyui-reactor-node/commits/main)
   ![Last commit](https://img.shields.io/github/last-commit/Gourieff/comfyui-reactor-node/main?cacheSeconds=0)
   [![Opened issues](https://img.shields.io/github/issues/Gourieff/comfyui-reactor-node?color=red)](https://github.com/Gourieff/comfyui-reactor-node/issues?cacheSeconds=0)
@@ -99,7 +104,7 @@
 2. Перейдите в `ComfyUI\custom_nodes`
 3. Откройте Консоль и выполните `git clone https://github.com/Gourieff/comfyui-reactor-node`
 4. Запустите `install.bat`, дождитесь окончание установки
-5. (Начиная с версии 0.3.0) Скачайте модели восстановления лиц (по ссылкам ниже) и сохраните их в папку `ComfyUI\custom_nodes\comfyui-reactor-node\models\facerestore_models`:
+5. (Начиная с версии 0.3.0) Скачайте модели восстановления лиц (по ссылкам ниже) и сохраните их в папку `ComfyUI\models\facerestore_models`:
    - CodeFormer: https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth
    - GFPGAN: https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth
 6. Запустите ComfyUI и найдите ReActor Node внутри меню `image/postprocessing` или через поиск
@@ -158,7 +163,7 @@ ReActor заменит только то лицо, которое удовлет
 Эта ошибка появляется, если что-то не так с файлом модели `inswapper_128.onnx`
 
 Скачайте вручную по ссылке [отсюда](https://github.com/facefusion/facefusion-assets/releases/download/models/inswapper_128.onnx)
-и сохраните в директорию `ComfyUI\custom_nodes\comfyui-reactor-node\models\insightface`, заменив имеющийся файл
+и сохраните в директорию `ComfyUI\models\insightface`, заменив имеющийся файл
 
 ### **III. "reactor.execute() got an unexpected keyword argument 'reference_image'"**
 
@@ -197,6 +202,61 @@ ReActor заменит только то лицо, которое удовлет
 - пропагандируют любую информацию (как общедоступную, так и личную) или изображения (как общедоступные, так и личные), которые могут быть направлены на причинение вреда;
 - используются для распространения дезинформации;
 - нацелены на уязвимые группы людей.
+
+Данное программное обеспечение использует предварительно обученные модели `buffalo_l` и `inswapper_128.onnx`, представленные разработчиками [InsightFace](https://github.com/deepinsight/insightface/). Эти модели распространяются при следующих условиях:
+
+[Перевод из текста лицензии insighface](https://github.com/deepinsight/insightface/tree/master/python-package): Предварительно обученные модели InsightFace доступны только для некоммерческих исследовательских целей. Сюда входят как модели с автоматической загрузкой, так и модели, загруженные вручную.
+
+Пользователи данного программного обеспечения должны строго соблюдать данные условия использования. Разработчики и Со-авторы данного программного продукта не несут ответственности за неправильное использование предварительно обученных моделей InsightFace.
+
+Обратите внимание: если вы собираетесь использовать это программное обеспечение в каких-либо коммерческих целях, вам необходимо будет обучить свои собственные модели или найти модели, которые можно использовать в коммерческих целях.
+
+### Хэш файлов моделей
+
+#### Безопасные для использования модели имеют следующий хэш:
+
+inswapper_128.onnx
+```
+MD5:a3a155b90354160350efd66fed6b3d80
+SHA256:e4a3f08c753cb72d04e10aa0f7dbe3deebbf39567d4ead6dce08e98aa49e16af
+```
+
+1k3d68.onnx
+
+```
+MD5:6fb94fcdb0055e3638bf9158e6a108f4
+SHA256:df5c06b8a0c12e422b2ed8947b8869faa4105387f199c477af038aa01f9a45cc
+```
+
+2d106det.onnx
+
+```
+MD5:a3613ef9eb3662b4ef88eb90db1fcf26
+SHA256:f001b856447c413801ef5c42091ed0cd516fcd21f2d6b79635b1e733a7109dbf
+```
+
+det_10g.onnx
+
+```
+MD5:4c10eef5c9e168357a16fdd580fa8371
+SHA256:5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
+```
+
+genderage.onnx
+
+```
+MD5:81c77ba87ab38163b0dec6b26f8e2af2
+SHA256:4fde69b1c810857b88c64a335084f1c3fe8f01246c9a191b48c7bb756d6652fb
+```
+
+w600k_r50.onnx
+
+```
+MD5:80248d427976241cbd1343889ed132b3
+SHA256:4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
+```
+
+**Пожалуйста, сравните хэш, если вы скачиваете данные модели из непроверенных источников**
 
 <a name="note">
 

@@ -2,7 +2,12 @@
 
   <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/ReActor_logo_red.png?raw=true" alt="logo" width="180px"/>
 
-  ![Version](https://img.shields.io/badge/node_version-0.3.0_beta3-green?style=for-the-badge&labelColor=darkgreen)<hr>
+  ![Version](https://img.shields.io/badge/node_version-0.3.0-brightgreen?style=for-the-badge&labelColor=darkgreen)
+  
+  <a href='https://ko-fi.com/gourieff' target='_blank'><img height='33' src='https://storage.ko-fi.com/cdn/kofi3.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
+  <hr>
+  
   [![Commit activity](https://img.shields.io/github/commit-activity/t/Gourieff/comfyui-reactor-node/main?cacheSeconds=0)](https://github.com/Gourieff/comfyui-reactor-node/commits/main)
   ![Last commit](https://img.shields.io/github/last-commit/Gourieff/comfyui-reactor-node/main?cacheSeconds=0)
   [![Opened issues](https://img.shields.io/github/issues/Gourieff/comfyui-reactor-node?color=red)](https://github.com/Gourieff/comfyui-reactor-node/issues?cacheSeconds=0)
@@ -97,7 +102,7 @@
 2. Go to the `ComfyUI\custom_nodes` directory
 3. Open Console and run `git clone https://github.com/Gourieff/comfyui-reactor-node`
 4. Run `install.bat`
-5. (From the version 0.3.0) Download facerestorers models from the links below and put them into the `ComfyUI\custom_nodes\comfyui-reactor-node\models\facerestore_models` directory:
+5. (From the version 0.3.0) Download facerestorers models from the links below and put them into the `ComfyUI\models\facerestore_models` directory:
    - CodeFormer: https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth
    - GFPGAN: https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth
 6. Run ComfyUI and find there ReActor Node inside the menu `image/postprocessing` or by using a search
@@ -152,7 +157,7 @@ ReActor will swap a face only if it meets the given condition.
 This error may occur if there's smth wrong with the model file `inswapper_128.onnx`
 
 Try to download it manually from [here](https://github.com/facefusion/facefusion-assets/releases/download/models/inswapper_128.onnx)
-and put it to the `ComfyUI\custom_nodes\comfyui-reactor-node\models\insightface` replacing existing one
+and put it to the `ComfyUI\models\insightface` replacing existing one
 
 ### **III. "reactor.execute() got an unexpected keyword argument 'reference_image'"**
 
@@ -187,6 +192,61 @@ By using this extension you are agree not to create any content that:
 - propogates (spreads) any information (both public or personal) or images (both public or personal) which could be meant for harm;
 - spreads misinformation;
 - targets vulnerable groups of people.
+
+This software utilizes the pre-trained models `buffalo_l` and `inswapper_128.onnx`, which are provided by [InsightFace](https://github.com/deepinsight/insightface/). These models are included under the following conditions:
+
+[From insighface licence](https://github.com/deepinsight/insightface/tree/master/python-package): The InsightFace’s pre-trained models are available for non-commercial research purposes only. This includes both auto-downloading models and manually downloaded models.
+
+Users of this software must strictly adhere to these conditions of use. The developers and maintainers of this software are not responsible for any misuse of InsightFace’s pre-trained models.
+
+Please note that if you intend to use this software for any commercial purposes, you will need to train your own models or find models that can be used commercially.
+
+### Models Hashsum
+
+#### Safe-to-use models have the folowing hash:
+
+inswapper_128.onnx
+```
+MD5:a3a155b90354160350efd66fed6b3d80
+SHA256:e4a3f08c753cb72d04e10aa0f7dbe3deebbf39567d4ead6dce08e98aa49e16af
+```
+
+1k3d68.onnx
+
+```
+MD5:6fb94fcdb0055e3638bf9158e6a108f4
+SHA256:df5c06b8a0c12e422b2ed8947b8869faa4105387f199c477af038aa01f9a45cc
+```
+
+2d106det.onnx
+
+```
+MD5:a3613ef9eb3662b4ef88eb90db1fcf26
+SHA256:f001b856447c413801ef5c42091ed0cd516fcd21f2d6b79635b1e733a7109dbf
+```
+
+det_10g.onnx
+
+```
+MD5:4c10eef5c9e168357a16fdd580fa8371
+SHA256:5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
+```
+
+genderage.onnx
+
+```
+MD5:81c77ba87ab38163b0dec6b26f8e2af2
+SHA256:4fde69b1c810857b88c64a335084f1c3fe8f01246c9a191b48c7bb756d6652fb
+```
+
+w600k_r50.onnx
+
+```
+MD5:80248d427976241cbd1343889ed132b3
+SHA256:4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
+```
+
+**Please check hashsums if you download these models from unverified (or untrusted) sources**
 
 <a name="note">
 
