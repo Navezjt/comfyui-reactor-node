@@ -1,10 +1,24 @@
 <div align="center">
 
-  <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/ReActor_logo_red.png?raw=true" alt="logo" width="180px"/>
+  <img src="https://github.com/Gourieff/Assets/raw/main/sd-webui-reactor/ReActor_logo_NEW_EN.png?raw=true" alt="logo" width="180px"/>
 
-  ![Version](https://img.shields.io/badge/node_version-0.3.0-brightgreen?style=for-the-badge&labelColor=darkgreen)
+  ![Version](https://img.shields.io/badge/node_version-0.4.1_beta12-green?style=for-the-badge&labelColor=darkgreen)
+
+  <sup>
+  <font color=brightred>
+
+  ## !!! [Important Update](#latestupdate) !!!<br>Don't forget to add the Node again in existing workflows
   
-  <a href='https://ko-fi.com/gourieff' target='_blank'><img height='33' src='https://storage.ko-fi.com/cdn/kofi3.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+  </font>
+  </sup>
+  
+  <a href="https://boosty.to/artgourieff" target="_blank">
+    <img src="https://lovemet.ru/www/boosty.jpg" width="108" alt="Support Me on Boosty"/>
+    <br>
+    <sup>
+      Support This Project
+    </sup>
+  </a>
 
   <hr>
   
@@ -27,41 +41,53 @@
 <div align="center">
 
 ---
-[**Installation**](#installation) | [**Usage**](#usage) | [**Troubleshooting**](#troubleshooting) | [**Updating**](#updating) | [**Disclaimer**](#disclaimer) | [**Note!**](#note)
+[**What's new**](#latestupdate) | [**Installation**](#installation) | [**Usage**](#usage) | [**Troubleshooting**](#troubleshooting) | [**Updating**](#updating) | [**Disclaimer**](#disclaimer) | [**Credits**](#credits) | [**Note!**](#note)
 
 ---
 
 </div>
 
-<table>
-  <tr>
-    <td width="134px">
-      <a href="https://boosty.to/artgourieff" target="_blank">
-        <img src="https://lovemet.ru/www/boosty.jpg" width="108" alt="Support Me on Boosty"/>
-        <br>
-        <sup>
-          Support This Project
-        </sup>
-      </a>
-    </td>
-    <td>
-      ReActor Node is an extension for ComfyUI that allows a very easy and accurate face-replacement (face swap) in images
-    </td>
-    <td width="144px">
-      <a href="https://paypal.me/artgourieff" target="_blank">
-        <img src="https://www.paypalobjects.com/digitalassets/c/website/logo/full-text/pp_fc_hl.svg" width="108" alt="Support Me via PayPal"/>
-        <br>
-        <sup>
-          Donate to This Project
-        </sup>
-      </a>
-    </td>
-  </tr>
-</table>
-
 <div align="center">
   <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/demo.gif?raw=true" alt="demo" width="100%"/>
 </div>
+
+<a name="latestupdate">
+
+## What's new in the latest update
+
+### 0.4.1 <sub><sup>BETA9</sup></sub>
+
+- CUDA 12 Support - don't forget to run (Windows) `install.bat` or (Linux/MacOS) `install.py` for ComfyUI's Python enclosure or try to install ORT-GPU for CU12 manually (https://onnxruntime.ai/docs/install/#install-onnx-runtime-gpu-cuda-12x)
+- Issue https://github.com/Gourieff/comfyui-reactor-node/issues/173 fix
+
+### 0.4.1 <sub><sup>BETA8</sup></sub>
+
+- Seperate Node for the Face Restoration postprocessing (FR https://github.com/Gourieff/comfyui-reactor-node/issues/191), can be found inside ReActor's menu (RestoreFace Node)
+- (Windows) Installation can be done for Python from the System's PATH
+- Different fixes and improvements
+
+### 0.4.1 <sub><sup>BETA1</sup></sub>
+
+- Face Restore Visibility and CodeFormer Weight (Fidelity) options are now available! Don't forget to reload the Node in your existing workflow
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.4.1-whatsnew-01.jpg?raw=true" alt="0.4.1-whatsnew-01" width="100%"/>
+
+### 0.4.0
+
+- Input "input_image" goes first now, it gives a correct bypass and also it is right to have the main input first;
+- You can now save face models as "safetensors" files (`ComfyUI\models\reactor\faces`) and load them into ReActor implementing different scenarios and keeping super lightweight face models of the faces you use:
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.4.0-whatsnew-01.jpg?raw=true" alt="0.4.0-whatsnew-01" width="100%"/>
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.4.0-whatsnew-02.jpg?raw=true" alt="0.4.0-whatsnew-02" width="100%"/>
+
+- Ability to build and save face models directly from an image:
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.4.0-whatsnew-03.jpg?raw=true" alt="0.4.0-whatsnew-03" width="50%"/>
+
+- Both the inputs are optional, just connect one of them according to your workflow; if both is connected - `image` has a priority.
+- Different fixes making this extension better.
+
+Thanks to everyone who finds bugs, suggests new features and supports this project!
 
 ## Installation
 
@@ -86,7 +112,7 @@
 11. Run SD WebUI and check console for the message that ReActor Node is running:
 <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/console_status_running.jpg?raw=true" alt="console_status_running" width="759"/>
 
-1.  Go to the ComfyUI tab and find there ReActor Node inside the menu `image/postprocessing` or by using a search:
+1.  Go to the ComfyUI tab and find there ReActor Node inside the menu `ReActor` or by using a search:
 <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/webui-demo.png?raw=true" alt="webui-demo" width="100%"/>
 <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/search-demo.png?raw=true" alt="webui-demo" width="1043"/>
 
@@ -105,17 +131,40 @@
 5. (From the version 0.3.0) Download facerestorers models from the links below and put them into the `ComfyUI\models\facerestore_models` directory:
    - CodeFormer: https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth
    - GFPGAN: https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth
-6. Run ComfyUI and find there ReActor Node inside the menu `image/postprocessing` or by using a search
+6. Run ComfyUI and find there ReActor Node inside the menu `ReActor` or by using a search
 
 </details>
 
 ## Usage
 
-Just connect all required nodes and run the query.
+You can find ReActor Nodes inside the menu `ReActor` or by using a search (just type "ReActor" in the search field)
+
+List of Nodes:
+- ReActorFaceSwap (Main Node)
+- ReActorLoadFaceModel (Load Face Model)
+- ReActorSaveFaceModel (Save Face Model)
+
+Connect all required slots and run the query.
+
+### Main Node Inputs
+
+- `input_image` - is an image to be processed (target image, analog of "target image" in the SD WebUI extension);
+  - Supported Nodes: "Load Image", "Load Video" or any other nodes providng images as an output;
+- `source_image` - is an image with a face or faces to swap in the `input_image` (source image, analog of "source image" in the SD WebUI extension);
+  - Supported Nodes: "Load Image";
+- `face_model` - is the input for the "Load Face Model" Node or another ReActor node to provide a face model file (face embedding) you created earlier via the "Save Face Model" Node;
+  - Supported Nodes: "Load Face Model";
+
+### Main Node Outputs
+
+- `IMAGE` - is an output with the resulted image;
+  - Supported Nodes: any nodes which have images as an input;
+- `FACE_MODEL` - is an output providng a source face's model being built during the swapping process;
+  - Supported Nodes: "Save Face Model", "ReActor";
 
 ### Face Restoration
 
-From the version 0.3.0 ReActor Node has a buil-in face restoration.<br>Just download the models you want (see [Installation](#installation) instruction) and select one of them to restore the resulting face(s) during the faceswap. It will enhance face details and make your result more accurate.
+Since version 0.3.0 ReActor Node has a buil-in face restoration.<br>Just download the models you want (see [Installation](#installation) instruction) and select one of them to restore the resulting face(s) during the faceswap. It will enhance face details and make your result more accurate.
 
 ### Face Indexes
 
@@ -133,6 +182,13 @@ E.g.: 0,1,2 (for Source); 1,0,2 (for Input).<br>This means: the second Input fac
 You can specify the gender to detect in images.<br>
 ReActor will swap a face only if it meets the given condition.
 
+### Face Models
+
+Since version 0.4.0 you can save face models as "safetensors" files (stored in `ComfyUI\models\reactor\faces`) and load them into ReActor implementing different scenarios and keeping super lightweight face models of the faces you use.
+
+To make new models appear in the list of the "Load Face Model" Node - just refresh the page of your ComfyUI web application.<br>
+(I recommend you to use ComfyUI Manager - otherwise you workflow can be lost after you refresh the page if you didn't save it before that).
+
 ## Troubleshooting
 
 <a name="insightfacebuild">
@@ -140,7 +196,7 @@ ReActor will swap a face only if it meets the given condition.
 ### **I. (For Windows users) If you still cannot build Insightface for some reasons or just don't want to install Visual Studio or VS C++ Build Tools - do the following:**
 
 1. (ComfyUI Portable) From the root folder check the version of Python:<br>run CMD and type `python_embeded\python.exe -V`
-2. Download prebuilt Insightface package [for Python 3.10](https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp310-cp310-win_amd64.whl) or [for Python 3.11](https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl) (if in the previous step you see 3.11) and put into the stable-diffusion-webui (A1111 or SD.Next) root folder (where you have "webui-user.bat" file) or into ComfyUI root folder if you use ComfyUI Portable
+2. Download prebuilt Insightface package [for Python 3.10](https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp310-cp310-win_amd64.whl) or [for Python 3.11](https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl) (if in the previous step you see 3.11) or [for Python 3.12](https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp312-cp312-win_amd64.whl) (if in the previous step you see 3.12) and put into the stable-diffusion-webui (A1111 or SD.Next) root folder (where you have "webui-user.bat" file) or into ComfyUI root folder if you use ComfyUI Portable
 3. From the root folder run:
    - (SD WebUI) CMD and `.\venv\Scripts\activate`
    - (ComfyUI Portable) run CMD
@@ -148,8 +204,8 @@ ReActor will swap a face only if it meets the given condition.
    - (SD WebUI) `python -m pip install -U pip`
    - (ComfyUI Portable) `python_embeded\python.exe -m pip install -U pip`
 5. Then install Insightface:
-   - (SD WebUI) `pip install insightface-0.7.3-cp310-cp310-win_amd64.whl`
-   - (ComfyUI Portable) `python_embeded\python.exe -m pip install insightface-0.7.3-cp310-cp310-win_amd64.whl`
+   - (SD WebUI) `pip install insightface-0.7.3-cp310-cp310-win_amd64.whl` (for 3.10) or `pip install insightface-0.7.3-cp311-cp311-win_amd64.whl` (for 3.11) or `pip install insightface-0.7.3-cp312-cp312-win_amd64.whl` (for 3.12)
+   - (ComfyUI Portable) `python_embeded\python.exe -m pip install insightface-0.7.3-cp310-cp310-win_amd64.whl` (for 3.10) or `python_embeded\python.exe -m pip install insightface-0.7.3-cp311-cp311-win_amd64.whl` (for 3.11) or `python_embeded\python.exe -m pip install insightface-0.7.3-cp312-cp312-win_amd64.whl` (for 3.12)
 6. Enjoy!
 
 ### **II. "AttributeError: 'NoneType' object has no attribute 'get'"**
@@ -173,6 +229,27 @@ Remove the current ReActor Node from your workflow and add it again
 3. That's it!
 
 <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/uploads/reactor-w-controlnet.png?raw=true" alt="reactor+controlnet" />
+
+### **V. "ModuleNotFoundError: No module named 'basicsr'" or "subprocess-exited-with-error" during future-0.18.3 installation**
+
+- Download https://github.com/Gourieff/Assets/raw/main/comfyui-reactor-node/future-0.18.3-py3-none-any.whl<br>
+- Put it to ComfyUI root And run:
+
+      python_embeded\python.exe -m pip install future-0.18.3-py3-none-any.whl
+
+- Then:
+
+      python_embeded\python.exe -m pip install basicsr
+
+### **VI. "fatal: fetch-pack: invalid index-pack output" when you try to `git clone` the repository"**
+
+Try to clone with `--depth=1` (last commit only):
+
+     git clone --depth=1 https://github.com/Gourieff/comfyui-reactor-node
+
+Then retrieve the rest (if you need):
+
+     git fetch --unshallow
 
 ## Updating
 
@@ -247,6 +324,32 @@ SHA256:4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
 ```
 
 **Please check hashsums if you download these models from unverified (or untrusted) sources**
+
+<a name="credits">
+
+## Thanks and Credits
+
+<details>
+	<summary><a>Click to expand</a></summary>
+
+<br>
+
+|file|source|license|
+|----|------|-------|
+|[buffalo_l.zip](https://huggingface.co/datasets/Gourieff/ReActor/blob/main/models/buffalo_l.zip) | [DeepInsight](https://github.com/deepinsight/insightface) | ![license](https://img.shields.io/badge/license-non_commercial-red) |
+| [codeformer-v0.1.0.pth](https://huggingface.co/datasets/Gourieff/ReActor/blob/main/models/facerestore_models/codeformer-v0.1.0.pth) | [sczhou](https://github.com/sczhou/CodeFormer) | ![license](https://img.shields.io/badge/license-non_commercial-red) |
+| [GFPGANv1.3.pth](https://huggingface.co/datasets/Gourieff/ReActor/blob/main/models/facerestore_models/GFPGANv1.3.pth) | [TencentARC](https://github.com/TencentARC/GFPGAN) | ![license](https://img.shields.io/badge/license-Apache_2.0-green.svg) |
+| [GFPGANv1.4.pth](https://huggingface.co/datasets/Gourieff/ReActor/blob/main/models/facerestore_models/GFPGANv1.4.pth) | [TencentARC](https://github.com/TencentARC/GFPGAN) | ![license](https://img.shields.io/badge/license-Apache_2.0-green.svg) |
+| [inswapper_128.onnx](https://github.com/facefusion/facefusion-assets/releases/download/models/inswapper_128.onnx) | [DeepInsight](https://github.com/deepinsight/insightface) | ![license](https://img.shields.io/badge/license-non_commercial-red) |
+| [inswapper_128_fp16.onnx](https://github.com/facefusion/facefusion-assets/releases/download/models/inswapper_128_fp16.onnx) | [Hillobar](https://github.com/Hillobar/Rope) | ![license](https://img.shields.io/badge/license-non_commercial-red) |
+
+[BasicSR](https://github.com/XPixelGroup/BasicSR) - [@XPixelGroup](https://github.com/XPixelGroup) <br>
+[facexlib](https://github.com/xinntao/facexlib) - [@xinntao](https://github.com/xinntao) <br>
+
+[@s0md3v](https://github.com/s0md3v), [@henryruhs](https://github.com/henryruhs) - the original Roop App <br>
+[@ssitu](https://github.com/ssitu) - the first version of [ComfyUI_roop](https://github.com/ssitu/ComfyUI_roop) extension
+
+</details>
 
 <a name="note">
 

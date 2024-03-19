@@ -1,6 +1,12 @@
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 import subprocess
-import os, sys, shutil
-import pkg_resources
+import os, sys
+try:
+    from pkg_resources import get_distribution as distributions
+except:
+    from importlib_metadata import distributions
 from tqdm import tqdm
 import urllib.request
 from packaging import version as pv
@@ -14,51 +20,66 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 req_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "requirements.txt")
 
-model_url = "https://github.com/facefusion/facefusion-assets/releases/download/models/inswapper_128.onnx"
+model_url = "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/inswapper_128.onnx"
 model_name = os.path.basename(model_url)
 models_dir_path = os.path.join(models_dir, "insightface")
 model_path = os.path.join(models_dir_path, model_name)
-models_dir_old = os.path.abspath("models/insightface")
-model_path_old = os.path.join(models_dir_old, model_name)
 
 def run_pip(*args):
-    subprocess.run([sys.executable, "-m", "pip", "install", *args])
+    subprocess.run([sys.executable, "-m", "pip", "install", "--no-warn-script-location", *args])
 
 def is_installed (
-        package: str, version: str | None = None, strict: bool = True
+        package: str, version: str = None, strict: bool = True
 ):
     has_package = None
     try:
-        has_package = pkg_resources.get_distribution(package)
+        has_package = distributions(package)
         if has_package is not None:
-            installed_version = has_package.version
-            if (installed_version != version and strict == True) or (pv.parse(installed_version) < pv.parse(version) and strict == False):
-                return False
+            if version is not None:
+                installed_version = has_package.version
+                if (installed_version != version and strict == True) or (pv.parse(installed_version) < pv.parse(version) and strict == False):
+                    return False
+                else:
+                    return True
             else:
                 return True
         else:
             return False
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Status: {e}")
         return False
     
-def download(url, path):
+def download(url, path, name):
     request = urllib.request.urlopen(url)
     total = int(request.headers.get('Content-Length', 0))
-    with tqdm(total=total, desc='Downloading', unit='B', unit_scale=True, unit_divisor=1024) as progress:
+    with tqdm(total=total, desc=f'[ReActor] Downloading {name} to {path}', unit='B', unit_scale=True, unit_divisor=1024) as progress:
         urllib.request.urlretrieve(url, path, reporthook=lambda count, block_size, total_size: progress.update(block_size))
 
 if not os.path.exists(models_dir_path):
     os.makedirs(models_dir_path)
 
-if os.path.exists(models_dir_old):
-    shutil.move(model_path_old, model_path)
-
 if not os.path.exists(model_path):
-    download(model_url, model_path)
+    download(model_url, model_path, model_name)
 
-print("Installing...")
 with open(req_file) as file:
+    try:
+        ort = "onnxruntime-gpu"
+        import torch
+        cuda_version = None
+        if torch.cuda.is_available():
+            cuda_version = torch.version.cuda
+            print(f"CUDA {cuda_version}")
+        elif torch.backends.mps.is_available() or hasattr(torch,'dml') or hasattr(torch,'privateuseone'):
+            ort = "onnxruntime"
+        if cuda_version is not None and float(cuda_version)>=12: # CU12
+            if not is_installed(ort,"1.17.0",False):
+                run_pip(ort,"--extra-index-url", "https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/")
+        elif not is_installed(ort,"1.16.1",False):
+            run_pip(ort, "-U")
+    except Exception as e:
+        print(e)
+        print(f"Warning: Failed to install {ort}, ReActor will not work.")
+        raise e
     strict = True
     for package in file:
         package_version = None

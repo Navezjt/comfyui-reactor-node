@@ -8,13 +8,11 @@ original_modules = sys.modules.copy()
 # Place aside existing modules if using a1111 web ui
 modules_used = [
     "modules",
-    "modules.face_restoration",
     "modules.images",
     "modules.processing",
     "modules.scripts_postprocessing",
     "modules.scripts",
     "modules.shared",
-    "modules.upscaler",
 ]
 original_webui_modules = {}
 for module in modules_used:
@@ -32,7 +30,7 @@ sys.path.remove(repo_dir)
 # Remove any new modules
 modules_to_remove = []
 for module in sys.modules:
-    if module not in original_modules:
+    if module not in original_modules and not module.startswith("google.protobuf") and not module.startswith("onnx") and not module.startswith("cv2"):
         modules_to_remove.append(module)
 for module in modules_to_remove:
     del sys.modules[module]
