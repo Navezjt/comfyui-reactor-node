@@ -2,14 +2,20 @@ import os
 from PIL import Image
 import numpy as np
 import torch
+from torchvision.utils import make_grid
 import cv2
+import math
 import logging
 import hashlib
 from insightface.app.common import Face
 from safetensors.torch import save_file, safe_open
 from tqdm import tqdm
 import urllib.request
+import onnxruntime
+from typing import Any
+import folder_paths
 
+ORT_SESSION = None
 
 def tensor_to_pil(img_tensor, batch_index=0):
     # Convert tensor of shape [batch_size, channels, height, width] at the batch_index to PIL Image
@@ -95,11 +101,13 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         result = result[0]
     return result
 
+
 def download(url, path, name):
     request = urllib.request.urlopen(url)
     total = int(request.headers.get('Content-Length', 0))
     with tqdm(total=total, desc=f'[ReActor] Downloading {name} to {path}', unit='B', unit_scale=True, unit_divisor=1024) as progress:
         urllib.request.urlretrieve(url, path, reporthook=lambda count, block_size, total_size: progress.update(block_size))
+
 
 def move_path(old_path, new_path):
     if os.path.exists(old_path):
@@ -113,6 +121,7 @@ def move_path(old_path, new_path):
         except Exception as e:
             print(f"Error: {e}")
             new_path = old_path
+
 
 def addLoggingLevel(levelName, levelNum, methodName=None):
     if not methodName:
@@ -130,9 +139,11 @@ def addLoggingLevel(levelName, levelNum, methodName=None):
     setattr(logging.getLoggerClass(), methodName, logForLevel)
     setattr(logging, methodName, logToRoot)
 
+
 def get_image_md5hash(image: Image.Image):
     md5hash = hashlib.md5(image.tobytes())
     return md5hash.hexdigest()
+
 
 def save_face_model(face: Face, filename: str) -> None:
     try:
@@ -152,9 +163,62 @@ def save_face_model(face: Face, filename: str) -> None:
     except Exception as e:
         print(f"Error: {e}")
 
+
 def load_face_model(filename: str):
     face = {}
     with safe_open(filename, framework="pt") as f:
         for k in f.keys():
             face[k] = f.get_tensor(k).numpy()
     return Face(face)
+
+
+def get_ort_session():
+    global ORT_SESSION
+    return ORT_SESSION
+
+def set_ort_session(model_path, providers) -> Any:
+    global ORT_SESSION
+    onnxruntime.set_default_logger_severity(3)
+    ORT_SESSION = onnxruntime.InferenceSession(model_path, providers=providers)
+    return ORT_SESSION
+
+def clear_ort_session() -> None:
+    global ORT_SESSION
+    ORT_SESSION = None
+
+def prepare_cropped_face(cropped_face):
+	cropped_face = cropped_face[:, :, ::-1] / 255.0
+	cropped_face = (cropped_face - 0.5) / 0.5
+	cropped_face = np.expand_dims(cropped_face.transpose(2, 0, 1), axis = 0).astype(np.float32)
+	return cropped_face
+
+def normalize_cropped_face(cropped_face):
+	cropped_face = np.clip(cropped_face, -1, 1)
+	cropped_face = (cropped_face + 1) / 2
+	cropped_face = cropped_face.transpose(1, 2, 0)
+	cropped_face = (cropped_face * 255.0).round()
+	cropped_face = cropped_face.astype(np.uint8)[:, :, ::-1]
+	return cropped_face
+
+
+# author: Trung0246 --->
+def add_folder_path_and_extensions(folder_name, full_folder_paths, extensions):
+    # Iterate over the list of full folder paths
+    for full_folder_path in full_folder_paths:
+        # Use the provided function to add each model folder path
+        folder_paths.add_model_folder_path(folder_name, full_folder_path)
+
+    # Now handle the extensions. If the folder name already exists, update the extensions
+    if folder_name in folder_paths.folder_names_and_paths:
+        # Unpack the current paths and extensions
+        current_paths, current_extensions = folder_paths.folder_names_and_paths[folder_name]
+        # Update the extensions set with the new extensions
+        updated_extensions = current_extensions | extensions
+        # Reassign the updated tuple back to the dictionary
+        folder_paths.folder_names_and_paths[folder_name] = (current_paths, updated_extensions)
+    else:
+        # If the folder name was not present, add_model_folder_path would have added it with the last path
+        # Now we just need to update the set of extensions as it would be an empty set
+        # Also ensure that all paths are included (since add_model_folder_path adds only one path at a time)
+        folder_paths.folder_names_and_paths[folder_name] = (full_folder_paths, extensions)
+# <---
