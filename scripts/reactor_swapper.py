@@ -54,7 +54,10 @@ if os.path.exists(insightface_path) and os.path.exists(insightface_path_old):
 FS_MODEL = None
 CURRENT_FS_MODEL_PATH = None
 
-ANALYSIS_MODEL = None
+ANALYSIS_MODELS = {
+    "640": None,
+    "320": None,
+}
 
 SOURCE_FACES = None
 SOURCE_IMAGE_HASH = None
@@ -67,14 +70,16 @@ def get_current_faces_model():
     global SOURCE_FACES
     return SOURCE_FACES
 
-def getAnalysisModel():
-    global ANALYSIS_MODEL
+def getAnalysisModel(det_size = (640, 640)):
+    global ANALYSIS_MODELS
+    ANALYSIS_MODEL = ANALYSIS_MODELS[str(det_size[0])]
     if ANALYSIS_MODEL is None:
         ANALYSIS_MODEL = insightface.app.FaceAnalysis(
             name="buffalo_l", providers=providers, root=insightface_path
         )
+    ANALYSIS_MODEL.prepare(ctx_id=0, det_size=det_size)
+    ANALYSIS_MODELS[str(det_size[0])] = ANALYSIS_MODEL
     return ANALYSIS_MODEL
-
 
 def getFaceSwapModel(model_path: str):
     global FS_MODEL
@@ -139,8 +144,7 @@ def half_det_size(det_size):
     return (det_size[0] // 2, det_size[1] // 2)
 
 def analyze_faces(img_data: np.ndarray, det_size=(640, 640)):
-    face_analyser = copy.deepcopy(getAnalysisModel())
-    face_analyser.prepare(ctx_id=0, det_size=det_size)
+    face_analyser = getAnalysisModel(det_size)
     return face_analyser.get(img_data)
 
 def get_face_single(img_data: np.ndarray, face, face_index=0, det_size=(640, 640), gender_source=0, gender_target=0, order="large-small"):
@@ -455,8 +459,7 @@ def swap_face_many(
             if len(source_faces_index) != 0 and len(source_faces_index) != 1 and len(source_faces_index) != len(faces_index):
                 logger.status(f'Source Faces must have no entries (default=0), one entry, or same number of entries as target faces.')
             elif source_face is not None:
-                results = []
-                # results = target_imgs
+                results = target_imgs
                 model_path = model_path = os.path.join(insightface_path, model)
                 face_swapper = getFaceSwapModel(model_path)
 
@@ -473,12 +476,13 @@ def swap_face_many(
                     source_face_idx += 1
 
                     if source_face is not None and src_wrong_gender == 0:
-                        for i, (target_img, target_face) in enumerate(zip(target_imgs, target_faces)):
+                        # Reading results to make current face swap on a previous face result
+                        for i, (target_img, target_face) in enumerate(zip(results, target_faces)):
                             target_face_single, wrong_gender = get_face_single(target_img, target_face, face_index=face_num, gender_target=gender_target, order=faces_order[0])
                             if target_face_single is not None and wrong_gender == 0:
                                 logger.status(f"Swapping {i}...")
                                 result = face_swapper.get(target_img, target_face_single, source_face)
-                                results.append(result)
+                                results[i] = result
                             elif wrong_gender == 1:
                                 wrong_gender = 0
                                 logger.status("Wrong target gender detected")
