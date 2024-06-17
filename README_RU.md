@@ -2,7 +2,7 @@
 
   <img src="https://github.com/Gourieff/Assets/raw/main/sd-webui-reactor/ReActor_logo_NEW_RU.png?raw=true" alt="logo" width="180px"/>
 
-  ![Version](https://img.shields.io/badge/версия_нода-0.5.0_alpha1-lightgreen?style=for-the-badge&labelColor=darkgreen)
+  ![Version](https://img.shields.io/badge/версия_нода-0.5.0_beta4-green?style=for-the-badge&labelColor=darkgreen)
   
   <sup>
   <font color=brightred>
@@ -55,6 +55,18 @@
 
 ## Что нового в последнем обновлении
 
+### 0.5.0 <sub><sup>BETA2</sup></sub>
+
+- Появилась возможность строить смешанные модели лиц из пачки уже имеющихся моделей - добавьте для этого нод "Make Face Model Batch" в свой воркфлоу и загрузите несколько моделей через ноды "Load Face Model"
+- Огромный буст производительности модуля анализа изображений! 10-кратный прирост скорости! Работа с видео теперь в удовольствие!
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.0-whatsnew-05.png?raw=true" alt="0.5.0-whatsnew-05" width="100%"/>
+
+### 0.5.0 <sub><sup>BETA1</sup></sub>
+
+- Добавлен выход SWAPPED_FACE для нода Masking Helper
+- FIX: Удалён пустой A-канал на выходе IMAGE нода Masking Helper (вызывавший ошибки с некоторым нодами)
+
 ### 0.5.0 <sub><sup>ALPHA1</sup></sub>
 
 - Нод ReActorBuildFaceModel получил выход "face_model" для отправки совмещенной модели лиц непосредственно в основной Нод:
@@ -86,7 +98,7 @@ Basic workflow [💾](https://github.com/Gourieff/Assets/blob/main/comfyui-react
 <details>
 	<summary><a>Предыдущие версии</a></summary>
 
-### 0.4.2
+### [0.4.2](https://github.com/Gourieff/comfyui-reactor-node/releases/tag/v0.4.2)
 
 - Добавлена поддержка GPEN-BFR-512 и RestoreFormer_Plus_Plus моделей восстановления лиц
 
@@ -109,7 +121,7 @@ Basic workflow [💾](https://github.com/Gourieff/Assets/blob/main/comfyui-react
 
 Базовый воркфлоу [💾](https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/workflows/ReActor--Build-Blended-Face-Model--v1.json)
 
-### 0.4.1
+### [0.4.1](https://github.com/Gourieff/comfyui-reactor-node/releases/tag/v0.4.1)
 
 - Поддержка CUDA 12 - не забудьте запустить (Windows) `install.bat` или (Linux/MacOS) `install.py` для используемого Python окружения или попробуйте установить ORT-GPU для CU12 вручную (https://onnxruntime.ai/docs/install/#install-onnx-runtime-gpu-cuda-12x)
 - Исправление Issue https://github.com/Gourieff/comfyui-reactor-node/issues/173
@@ -122,7 +134,7 @@ Basic workflow [💾](https://github.com/Gourieff/Assets/blob/main/comfyui-react
 
 <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.4.1-whatsnew-01.jpg?raw=true" alt="0.4.1-whatsnew-01" width="100%"/>
 
-### 0.4.0
+### [0.4.0](https://github.com/Gourieff/comfyui-reactor-node/releases/tag/v0.4.0)
 
 - Вход "input_image" теперь идёт первым, это даёт возможность корректного байпаса, а также это правильно с точки зрения расположения входов (главный вход - первый);
 - Теперь можно сохранять модели лиц в качестве файлов "safetensors" (`ComfyUI\models\reactor\faces`) и загружать их в ReActor, реализуя разные сценарии использования, а также  храня супер легкие модели лиц, которые вы чаще всего используете:
@@ -178,12 +190,14 @@ https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/facerestore_mo
    - Установите [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) (Например, версию Community - этот шаг нужен для правильной компиляции библиотеки Insightface)
    - ИЛИ только [VS C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), выберите "Desktop Development with C++" в разделе "Workloads -> Desktop & Mobile"
    - ИЛИ если же вы не хотите устанавливать что-либо из вышеуказанного - выполните [данные шаги (раздел. I)](#insightfacebuild)
-2. Перейдите в `ComfyUI\custom_nodes`
-3. Откройте Консоль и выполните `git clone https://github.com/Gourieff/comfyui-reactor-node`
-4. Запустите `install.bat`, дождитесь окончание установки
-5. (Начиная с версии 0.3.0) Скачайте дополнительные модели восстановления лиц (по ссылке ниже) и сохраните их в папку `ComfyUI\models\facerestore_models`:<br>
-https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/facerestore_models
-6. Запустите ComfyUI и найдите ReActor Node внутри меню `ReActor` или через поиск
+2. Выберите из двух вариантов:
+   - (ComfyUI Manager) Откройте ComfyUI Manager, нажвите "Install Custom Nodes", введите "ReActor" в поле "Search" и далее нажмите "Install". После того, как ComfyUI завершит установку, перезагрузите сервер.
+   - (Вручную) Перейдите в `ComfyUI\custom_nodes`, откройте Консоль и выполните `git clone https://github.com/Gourieff/comfyui-reactor-node`
+3. Перейдите `ComfyUI\custom_nodes\comfyui-reactor-node` и запустите `install.bat`, дождитесь окончания установки
+4. Если модель "face_yolov8m.pt" у вас отсутствует - можете скачать её [отсюда](https://huggingface.co/datasets/Gourieff/ReActor/blob/main/models/detection/bbox/face_yolov8m.pt) и положить в папку "ComfyUI\models\ultralytics\bbox"
+<br>
+То же самое и с "Sams" моделями, скачайте одну или обе [отсюда](https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/sams) - и положите в папку "ComfyUI\models\sams"
+5. Запустите ComfyUI и найдите ReActor Node внутри меню `ReActor` или через поиск
 
 </details>
 
@@ -194,9 +208,20 @@ https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/facerestore_mo
 Вы можете найти ноды ReActor внутри меню `ReActor` или через поиск (достаточно ввести "ReActor" в поисковой строке)
 
 Список нодов:
-- ReActorFaceSwap (Основной нод)
-- ReActorLoadFaceModel (Load Face Model)
-- ReActorSaveFaceModel (Save Face Model)
+- ••• Main Nodes •••
+   - ReActorFaceSwap (Основной нод)
+   - ReActorFaceSwapOpt (Основной нод с доп. входом Options)
+   - ReActorOptions (Опции для ReActorFaceSwapOpt)
+   - ReActorMaskHelper (Masking Helper)
+- ••• Operations with Face Models •••
+  - ReActorSaveFaceModel (Save Face Model)
+  - ReActorLoadFaceModel (Load Face Model)
+  - ReActorBuildFaceModel (Build Blended Face Model)
+  - ReActorMakeFaceModelBatch (Make Face Model Batch)
+- ••• Additional Nodes •••
+  - ReActorRestoreFace (Face Restoration)
+  - ReActorImageDublicator (Dublicate one Image to Images List)
+  - ImageRGBA2RGB (Convert RGBA to RGB)
 
 Соедините все необходимые слоты (slots) и запустите очередь (query).
 
@@ -205,16 +230,16 @@ https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/facerestore_mo
 - `input_image` - это изображение, на котором надо поменять лицо или лица (целевое изображение, аналог "target image" в версии для SD WebUI);
   - Поддерживаемые ноды: "Load Image", "Load Video" или любые другие ноды предоставляющие изображение в качестве выхода;
 - `source_image` - это изображение с лицом или лицами для замены (изображение-источник, аналог "source image" в версии для SD WebUI);
-  - Поддерживаемые ноды: "Load Image";
+  - Поддерживаемые ноды: "Load Image" или любые другие ноды с выходом Image(s);
 - `face_model` - это вход для выхода с нода "Load Face Model" или другого нода ReActor для загрузки модели лица (face model или face embedding), которое вы создали ранее через нод "Save Face Model";
-  - Поддерживаемые ноды: "Load Face Model";
+  - Поддерживаемые ноды: "Load Face Model", "Build Blended Face Model";
 
 ### Выходы основного Нода
 
 - `IMAGE` - выход с готовым изображением (результатом);
   - Поддерживаемые ноды: любые ноды с изображением на входе;
 - `FACE_MODEL` - выход, предоставляющий модель лица, построенную в ходе замены;
-  - Поддерживаемые ноды: "Save Face Model", "ReActor";
+  - Поддерживаемые ноды: "Save Face Model", "ReActor", "Make Face Model Batch";
 
 ### Восстановление лиц
 
@@ -222,7 +247,7 @@ https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/facerestore_mo
 
 ### Индексы Лиц (Face Indexes)
 
-ReActor определяет лица на изображении в следующей последовательности:<br>слева-направо, сверху-вниз.
+По умолчанию ReActor определяет лица на изображении в порядке от "большого" к "малому".<br>Вы можете поменять эту опцию, используя нод ReActorFaceSwapOpt вместе с ReActorOptions.
 
 Если вам нужно заменить определенное лицо, вы можете указать индекс для исходного (source, с лицом) и входного (input, где будет замена лица) изображений.
 

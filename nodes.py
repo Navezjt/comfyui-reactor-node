@@ -17,12 +17,13 @@ from segment_anything import sam_model_registry
 
 from modules.processing import StableDiffusionProcessingImg2Img
 from modules.shared import state
-from comfy_extras.chainner_models import model_loading
+# from comfy_extras.chainner_models import model_loading
 import comfy.model_management as model_management
 import comfy.utils
 import folder_paths
 
 import scripts.reactor_version
+from r_chainner import model_loading
 from scripts.reactor_faceswap import (
     FaceSwapScript,
     get_models,
@@ -44,9 +45,10 @@ from reactor_utils import (
     set_ort_session,
     prepare_cropped_face,
     normalize_cropped_face,
-    add_folder_path_and_extensions
+    add_folder_path_and_extensions,
+    rgba2rgb_tensor
 )
-from reactor_log_patch import apply_logging_patch
+from reactor_patcher import apply_patch
 from r_facelib.utils.face_restoration_helper import FaceRestoreHelper
 from r_basicsr.utils.registry import ARCH_REGISTRY
 import scripts.r_archs.codeformer_arch
@@ -91,7 +93,8 @@ def get_restorers():
         fr_urls = [
             "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GFPGANv1.3.pth",
             "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GFPGANv1.4.pth",
-            "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/codeformer-v0.1.0.pth"
+            "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/codeformer-v0.1.0.pth",
+            "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GPEN-BFR-512.onnx"
         ]
         for model_url in fr_urls:
             model_name = os.path.basename(model_url)
@@ -119,7 +122,7 @@ class reactor:
         return {
             "required": {
                 "enabled": ("BOOLEAN", {"default": True, "label_off": "OFF", "label_on": "ON"}),
-                "input_image": ("IMAGE",),               
+                "input_image": ("IMAGE",),
                 "swap_model": (list(model_names().keys()),),
                 "facedetection": (["retinaface_resnet50", "retinaface_mobile0.25", "YOLOv5l", "YOLOv5n"],),
                 "face_restore_model": (get_model_names(get_restorers),),
@@ -164,7 +167,7 @@ class reactor:
             model_path = folder_paths.get_full_path("facerestore_models", face_restore_model)
 
             device = model_management.get_torch_device()
-            
+
             if "codeformer" in face_restore_model.lower():
                 
                 codeformer_net = ARCH_REGISTRY.get("CodeFormer")(
@@ -193,16 +196,34 @@ class reactor:
             if self.face_helper is None:
                 self.face_helper = FaceRestoreHelper(1, face_size=512, crop_ratio=(1, 1), det_model=facedetection, save_ext='png', use_parse=True, device=device)
 
-            image_np = 255. * result.cpu().numpy()
+            # print(f"result = {result.dtype}")
+            # image_np = 255. * result.cpu().numpy()
+            image_np = 255. * result.numpy()
 
             total_images = image_np.shape[0]
-            out_images = np.ndarray(shape=image_np.shape)
+
+            out_images = []
+
+            # try:
+            #     out_images = np.ndarray(shape=image_np.shape)
+            # except:
+            #     logger.error("Not enough RAM - Reducing data type to float32")
+            #     logger.info("Data type is set to 'float32'")
+            #     try:
+            #         logger.status("Trying again...")
+            #         out_images = np.ndarray(shape=image_np.shape, dtype=np.float32)
+            #     except:
+            #         logger.error("Not enough RAM - Reducing data type to float16")
+            #         logger.info("Data type is set to 'float16'")
+            #         try:
+            #             logger.status("Trying again...")
+            #             out_images = np.ndarray(shape=image_np.shape, dtype=np.float16)
+            #         except Exception as e:
+            #             logger.error("Not enough RAM, canceling...")
+            #             logger.status(f"Interrupted with Exception: {e}")
+            #             return result
 
             for i in range(total_images):
-
-                if state.interrupted or model_management.processing_interrupted():
-                    logger.status("Interrupted by User")
-                    break
 
                 if total_images > 1:
                     logger.status(f"Restoring {i+1}")
@@ -257,10 +278,10 @@ class reactor:
 
                         print(f"\tFailed inference: {error}", file=sys.stderr)
                         restored_face = tensor2img(cropped_face_t, rgb2bgr=True, min_max=(-1, 1))
-                    
+
                     if face_restore_visibility < 1:
                         restored_face = cropped_face * (1 - face_restore_visibility) + restored_face * face_restore_visibility
-                    
+
                     restored_face = restored_face.astype("uint8")
                     self.face_helper.add_restored_face(restored_face)
 
@@ -274,7 +295,12 @@ class reactor:
 
                 self.face_helper.clean_all()
 
-                out_images[i] = restored_img
+                # out_images[i] = restored_img
+                out_images.append(restored_img)
+
+                if state.interrupted or model_management.processing_interrupted():
+                    logger.status("Interrupted by User")
+                    return input_image
 
             restored_img_np = np.array(out_images).astype(np.float32) / 255.0
             restored_img_tensor = torch.from_numpy(restored_img_np)
@@ -282,13 +308,13 @@ class reactor:
             result = restored_img_tensor
 
         return result
-    
+
     def execute(self, enabled, input_image, swap_model, detect_gender_source, detect_gender_input, source_faces_index, input_faces_index, console_log_level, face_restore_model, face_restore_visibility, codeformer_weight, facedetection, source_image=None, face_model=None, faces_order=None):
 
         if faces_order is None:
             faces_order = self.faces_order
 
-        apply_logging_patch(console_log_level)
+        apply_patch(console_log_level)
 
         if not enabled:
             return (input_image,face_model)
@@ -415,11 +441,14 @@ class BuildFaceModel:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "images": ("IMAGE",),
                 "save_mode": ("BOOLEAN", {"default": True, "label_off": "OFF", "label_on": "ON"}),
                 "send_only": ("BOOLEAN", {"default": False, "label_off": "NO", "label_on": "YES"}),
                 "face_model_name": ("STRING", {"default": "default"}),
                 "compute_method": (["Mean", "Median", "Mode"], {"default": "Mean"}),
+            },
+            "optional": {
+                "images": ("IMAGE",),
+                "face_models": ("FACE_MODEL",),
             }
         }
 
@@ -453,34 +482,53 @@ class BuildFaceModel:
             # logger.error(no_face_msg)
             return no_face_msg
     
-    def blend_faces(self, images, save_mode, send_only, face_model_name, compute_method):
+    def blend_faces(self, save_mode, send_only, face_model_name, compute_method, images=None, face_models=None):
         global BLENDED_FACE_MODEL
         blended_face: Face = BLENDED_FACE_MODEL
 
         if send_only and blended_face is None:
             send_only = False
 
-        if images is not None and not send_only:
+        if (images is not None or face_models is not None) and not send_only:
 
             faces = []
             embeddings = []
-            images_list: List[Image.Image] = batch_tensor_to_pil(images)
 
-            apply_logging_patch(1)
+            apply_patch(1)
 
-            n = len(images_list)
+            if images is not None:
+                images_list: List[Image.Image] = batch_tensor_to_pil(images)
 
-            for i,image in enumerate(images_list):
-                logging.StreamHandler.terminator = " "
-                logger.status(f"Building Face Model {i+1} of {n}...")
-                face = self.build_face_model(image)
-                if isinstance(face, str):
-                    logger.error(f"No faces found in image {i+1}, skipping")
-                    continue
-                else:
-                    print(f"{int(((i+1)/n)*100)}%")
-                faces.append(face)
-                embeddings.append(face.embedding)
+                n = len(images_list)
+
+                for i,image in enumerate(images_list):
+                    logging.StreamHandler.terminator = " "
+                    logger.status(f"Building Face Model {i+1} of {n}...")
+                    face = self.build_face_model(image)
+                    if isinstance(face, str):
+                        logger.error(f"No faces found in image {i+1}, skipping")
+                        continue
+                    else:
+                        print(f"{int(((i+1)/n)*100)}%")
+                    faces.append(face)
+                    embeddings.append(face.embedding)
+            
+            elif face_models is not None:
+
+                n = len(face_models)
+
+                for i,face_model in enumerate(face_models):
+                    logging.StreamHandler.terminator = " "
+                    logger.status(f"Extracting Face Model {i+1} of {n}...")
+                    face = face_model
+                    if isinstance(face, str):
+                        logger.error(f"No faces found for face_model {i+1}, skipping")
+                        continue
+                    else:
+                        print(f"{int(((i+1)/n)*100)}%")
+                    faces.append(face)
+                    embeddings.append(face.embedding)
+
             logging.StreamHandler.terminator = "\n"
             if len(faces) > 0:
                 # compute_method_name = "Mean" if compute_method == 0 else "Median" if compute_method == 1 else "Mode"
@@ -511,8 +559,8 @@ class BuildFaceModel:
                     logger.error(no_face_msg)
                     # return (blended_face,)
             # logger.status("--Done!--")
-        if images is None:
-            logger.error("Please provide `images`")
+        if images is None and face_models is None:
+            logger.error("Please provide `images` or `face_models`")
         return (blended_face,)
 
 
@@ -545,7 +593,7 @@ class SaveFaceModel:
         if save_mode and image is not None:
             source = tensor_to_pil(image)
             source = cv2.cvtColor(np.array(source), cv2.COLOR_RGB2BGR)
-            apply_logging_patch(1)
+            apply_patch(1)
             logger.status("Building Face Model...")
             face_model_raw = analyze_faces(source, det_size)
             if len(face_model_raw) == 0:
@@ -639,8 +687,8 @@ class MaskHelper:
             }
         }
     
-    RETURN_TYPES = ("IMAGE","MASK","IMAGE")
-    RETURN_NAMES = ("IMAGE","MASK","MASK_PREVIEW")
+    RETURN_TYPES = ("IMAGE","MASK","IMAGE","IMAGE")
+    RETURN_NAMES = ("IMAGE","MASK","MASK_PREVIEW","SWAPPED_FACE")
     FUNCTION = "execute"
     CATEGORY = "🌌 ReActor"
 
@@ -832,6 +880,8 @@ class MaskHelper:
         target_height = max_y - min_y + 1
 
         result = image_base.detach().clone()
+        face_segment = mask_image_final
+        
         for i in range(0, MB):
             if is_empty[i]:
                 continue
@@ -904,8 +954,14 @@ class MaskHelper:
                 #     paste_mask = torch.min(pasting_alpha, mask[i]).unsqueeze(2).repeat(1, 1, 4)
                 paste_mask = torch.min(pasting_alpha, mask[i]).unsqueeze(2).repeat(1, 1, 4)
                 result[image_index] = pasting * paste_mask + result[image_index] * (1. - paste_mask)
+
+                face_segment = result
+
+                face_segment[...,3] = mask[i]
+
+                result = rgba2rgb_tensor(result)
         
-        return (result,combined_mask,mask_image_final,)
+        return (result,combined_mask,mask_image_final,face_segment,)
 
     def gaussian_blur(self, image, kernel_size, sigma):
         kernel = torch.Tensor(kernel_size, kernel_size).to(device=image.device)
@@ -966,6 +1022,59 @@ class ImageDublicator:
         return (images,)
 
 
+class ImageRGBA2RGB:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "execute"
+    CATEGORY = "🌌 ReActor"
+
+    def execute(self, image):
+        out = rgba2rgb_tensor(image)       
+        return (out,)
+
+
+class MakeFaceModelBatch:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "face_model1": ("FACE_MODEL",), 
+            },
+            "optional": {
+                "face_model2": ("FACE_MODEL",),
+                "face_model3": ("FACE_MODEL",),
+                "face_model4": ("FACE_MODEL",),
+                "face_model5": ("FACE_MODEL",),
+                "face_model6": ("FACE_MODEL",),
+                "face_model7": ("FACE_MODEL",),
+                "face_model8": ("FACE_MODEL",),
+                "face_model9": ("FACE_MODEL",),
+                "face_model10": ("FACE_MODEL",),
+            },
+        }
+
+    RETURN_TYPES = ("FACE_MODEL",)
+    RETURN_NAMES = ("FACE_MODELS",)
+    FUNCTION = "execute"
+
+    CATEGORY = "🌌 ReActor"
+
+    def execute(self, **kwargs):
+        if len(kwargs) > 0:
+            face_models = [value for value in kwargs.values()]
+            return (face_models,)
+        else:
+            logger.error("Please provide at least 1 `face_model`")
+            return (None,)
+
+
 class ReActorOptions:
     @classmethod
     def INPUT_TYPES(s):
@@ -1003,25 +1112,35 @@ class ReActorOptions:
 
 
 NODE_CLASS_MAPPINGS = {
+    # --- MAIN NODES ---
     "ReActorFaceSwap": reactor,
     "ReActorFaceSwapOpt": ReActorPlusOpt,
-    "ReActorLoadFaceModel": LoadFaceModel,
-    "ReActorSaveFaceModel": SaveFaceModel,
-    "ReActorRestoreFace": RestoreFace,
-    "ReActorBuildFaceModel": BuildFaceModel,
-    "ReActorMaskHelper": MaskHelper,
-    "ReActorImageDublicator": ImageDublicator,
     "ReActorOptions": ReActorOptions,
+    "ReActorMaskHelper": MaskHelper,
+    # --- Operations with Face Models ---
+    "ReActorSaveFaceModel": SaveFaceModel,
+    "ReActorLoadFaceModel": LoadFaceModel,
+    "ReActorBuildFaceModel": BuildFaceModel,
+    "ReActorMakeFaceModelBatch": MakeFaceModelBatch,
+    # --- Additional Nodes ---
+    "ReActorRestoreFace": RestoreFace,
+    "ReActorImageDublicator": ImageDublicator,
+    "ImageRGBA2RGB": ImageRGBA2RGB,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ReActorFaceSwap": "ReActor - Fast Face Swap",
-    "ReActorLoadFaceModel": "Load Face Model",
-    "ReActorSaveFaceModel": "Save Face Model",
-    "ReActorRestoreFace": "Restore Face",
-    "ReActorBuildFaceModel": "Build Blended Face Model",
-    "ReActorMaskHelper": "ReActor Masking Helper",
-    "ReActorImageDublicator": "ReActor Image Dublicator (List)",
-    "ReActorOptions": "ReActor Options",
-    "ReActorFaceSwapOpt": "ReActor - Fast Face Swap [OPTIONS]"
+    # --- MAIN NODES ---
+    "ReActorFaceSwap": "ReActor 🌌 Fast Face Swap",
+    "ReActorFaceSwapOpt": "ReActor 🌌 Fast Face Swap [OPTIONS]",
+    "ReActorOptions": "ReActor 🌌 Options",
+    "ReActorMaskHelper": "ReActor 🌌 Masking Helper",
+    # --- Operations with Face Models ---
+    "ReActorSaveFaceModel": "Save Face Model 🌌 ReActor",
+    "ReActorLoadFaceModel": "Load Face Model 🌌 ReActor",
+    "ReActorBuildFaceModel": "Build Blended Face Model 🌌 ReActor",
+    "ReActorMakeFaceModelBatch": "Make Face Model Batch 🌌 ReActor",
+    # --- Additional Nodes ---
+    "ReActorRestoreFace": "Restore Face 🌌 ReActor",
+    "ReActorImageDublicator": "Image Dublicator (List) 🌌 ReActor",
+    "ImageRGBA2RGB": "Convert RGBA to RGB 🌌 ReActor",
 }
