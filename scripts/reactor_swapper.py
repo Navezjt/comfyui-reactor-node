@@ -1,7 +1,5 @@
-import copy
 import os
 import shutil
-from dataclasses import dataclass
 from typing import List, Union
 
 import cv2
@@ -10,29 +8,48 @@ from PIL import Image
 
 import insightface
 from insightface.app.common import Face
-try:
-    import torch.cuda as cuda
-except:
-    cuda = None
+# try:
+#     import torch.cuda as cuda
+# except:
+#     cuda = None
+import torch
 
-from scripts.reactor_logger import logger
-from reactor_utils import move_path, get_image_md5hash
 import folder_paths
 import comfy.model_management as model_management
 from modules.shared import state
+
+from scripts.reactor_logger import logger
+from reactor_utils import (
+    move_path,
+    get_image_md5hash,
+)
+from scripts.r_faceboost import swapper, restorer
 
 import warnings
 
 np.warnings = warnings
 np.warnings.filterwarnings('ignore')
 
-if cuda is not None:
-    if cuda.is_available():
+# PROVIDERS
+try:
+    if torch.cuda.is_available():
         providers = ["CUDAExecutionProvider"]
+    elif torch.backends.mps.is_available():
+        providers = ["CoreMLExecutionProvider"]
+    elif hasattr(torch,'dml') or hasattr(torch,'privateuseone'):
+        providers = ["ROCMExecutionProvider"]
     else:
         providers = ["CPUExecutionProvider"]
-else:
+except Exception as e:
+    logger.debug(f"ExecutionProviderError: {e}.\nEP is set to CPU.")
     providers = ["CPUExecutionProvider"]
+# if cuda is not None:
+#     if cuda.is_available():
+#         providers = ["CUDAExecutionProvider"]
+#     else:
+#         providers = ["CPUExecutionProvider"]
+# else:
+#     providers = ["CPUExecutionProvider"]
 
 models_path_old = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
 insightface_path_old = os.path.join(models_path_old, "insightface")
@@ -41,6 +58,7 @@ insightface_models_path_old = os.path.join(insightface_path_old, "models")
 models_path = folder_paths.models_dir
 insightface_path = os.path.join(models_path, "insightface")
 insightface_models_path = os.path.join(insightface_path, "models")
+reswapper_path = os.path.join(models_path, "reswapper")
 
 if os.path.exists(models_path_old):
     move_path(insightface_models_path_old, insightface_models_path)
@@ -66,6 +84,22 @@ TARGET_IMAGE_HASH = None
 TARGET_FACES_LIST = []
 TARGET_IMAGE_LIST_HASH = []
 
+def unload_model(model):
+    if model is not None:
+        # check if model has unload method
+        # if "unload" in model:
+        #     model.unload()
+        # if "model_unload" in model:
+        #     model.model_unload()
+        del model
+    return None
+
+def unload_all_models():
+    global FS_MODEL, CURRENT_FS_MODEL_PATH
+    FS_MODEL = unload_model(FS_MODEL)
+    ANALYSIS_MODELS["320"] = unload_model(ANALYSIS_MODELS["320"])
+    ANALYSIS_MODELS["640"] = unload_model(ANALYSIS_MODELS["640"])
+
 def get_current_faces_model():
     global SOURCE_FACES
     return SOURCE_FACES
@@ -82,10 +116,10 @@ def getAnalysisModel(det_size = (640, 640)):
     return ANALYSIS_MODEL
 
 def getFaceSwapModel(model_path: str):
-    global FS_MODEL
-    global CURRENT_FS_MODEL_PATH
-    if CURRENT_FS_MODEL_PATH is None or CURRENT_FS_MODEL_PATH != model_path:
+    global FS_MODEL, CURRENT_FS_MODEL_PATH
+    if FS_MODEL is None or CURRENT_FS_MODEL_PATH is None or CURRENT_FS_MODEL_PATH != model_path:
         CURRENT_FS_MODEL_PATH = model_path
+        FS_MODEL = unload_model(FS_MODEL)
         FS_MODEL = insightface.model_zoo.get_model(model_path, providers=providers)
 
     return FS_MODEL
@@ -145,7 +179,14 @@ def half_det_size(det_size):
 
 def analyze_faces(img_data: np.ndarray, det_size=(640, 640)):
     face_analyser = getAnalysisModel(det_size)
-    return face_analyser.get(img_data)
+    faces = face_analyser.get(img_data)
+
+    # Try halving det_size if no faces are found
+    if len(faces) == 0 and det_size[0] > 320 and det_size[1] > 320:
+        det_size_half = half_det_size(det_size)
+        return analyze_faces(img_data, det_size_half)
+
+    return faces
 
 def get_face_single(img_data: np.ndarray, face, face_index=0, det_size=(640, 640), gender_source=0, gender_target=0, order="large-small"):
 
@@ -187,6 +228,11 @@ def swap_face(
     gender_target: int = 0,
     face_model: Union[Face, None] = None,
     faces_order: List = ["large-small", "large-small"],
+    face_boost_enabled: bool = False,
+    face_restore_model = None,
+    face_restore_visibility: int = 1,
+    codeformer_weight: float = 0.5,
+    interpolation: str = "Bicubic",
 ):
     global SOURCE_FACES, SOURCE_IMAGE_HASH, TARGET_FACES, TARGET_IMAGE_HASH
     result_image = target_img
@@ -283,7 +329,10 @@ def swap_face(
                 logger.status(f'Source Faces must have no entries (default=0), one entry, or same number of entries as target faces.')
             elif source_face is not None:
                 result = target_img
-                model_path = model_path = os.path.join(insightface_path, model)
+                if "inswapper" in model:
+                    model_path = model_path = os.path.join(insightface_path, model)
+                elif "reswapper" in model:
+                    model_path = model_path = os.path.join(reswapper_path, model)
                 face_swapper = getFaceSwapModel(model_path)
 
                 source_face_idx = 0
@@ -302,7 +351,15 @@ def swap_face(
                         target_face, wrong_gender = get_face_single(target_img, target_faces, face_index=face_num, gender_target=gender_target, order=faces_order[0])
                         if target_face is not None and wrong_gender == 0:
                             logger.status(f"Swapping...")
-                            result = face_swapper.get(result, target_face, source_face)
+                            if face_boost_enabled:
+                                logger.status(f"Face Boost is enabled")
+                                bgr_fake, M = face_swapper.get(result, target_face, source_face, paste_back=False)
+                                bgr_fake, scale = restorer.get_restored_face(bgr_fake, face_restore_model, face_restore_visibility, codeformer_weight, interpolation)
+                                M *= scale
+                                result = swapper.in_swap(target_img, bgr_fake, M)
+                            else:
+                                # logger.status(f"Swapping as-is")
+                                result = face_swapper.get(result, target_face, source_face)
                         elif wrong_gender == 1:
                             wrong_gender = 0
                             # Keep searching for other faces if wrong gender is detected, enhancement
@@ -342,6 +399,11 @@ def swap_face_many(
     gender_target: int = 0,
     face_model: Union[Face, None] = None,
     faces_order: List = ["large-small", "large-small"],
+    face_boost_enabled: bool = False,
+    face_restore_model = None,
+    face_restore_visibility: int = 1,
+    codeformer_weight: float = 0.5,
+    interpolation: str = "Bicubic",
 ):
     global SOURCE_FACES, SOURCE_IMAGE_HASH, TARGET_FACES, TARGET_IMAGE_HASH, TARGET_FACES_LIST, TARGET_IMAGE_LIST_HASH
     result_images = target_imgs
@@ -480,8 +542,17 @@ def swap_face_many(
                         for i, (target_img, target_face) in enumerate(zip(results, target_faces)):
                             target_face_single, wrong_gender = get_face_single(target_img, target_face, face_index=face_num, gender_target=gender_target, order=faces_order[0])
                             if target_face_single is not None and wrong_gender == 0:
+                                result = target_img
                                 logger.status(f"Swapping {i}...")
-                                result = face_swapper.get(target_img, target_face_single, source_face)
+                                if face_boost_enabled:
+                                    logger.status(f"Face Boost is enabled")
+                                    bgr_fake, M = face_swapper.get(target_img, target_face_single, source_face, paste_back=False)
+                                    bgr_fake, scale = restorer.get_restored_face(bgr_fake, face_restore_model, face_restore_visibility, codeformer_weight, interpolation)
+                                    M *= scale
+                                    result = swapper.in_swap(target_img, bgr_fake, M)
+                                else:
+                                    # logger.status(f"Swapping as-is")
+                                    result = face_swapper.get(target_img, target_face_single, source_face)
                                 results[i] = result
                             elif wrong_gender == 1:
                                 wrong_gender = 0

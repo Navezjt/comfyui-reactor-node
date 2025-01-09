@@ -2,18 +2,18 @@
 
   <img src="https://github.com/Gourieff/Assets/raw/main/sd-webui-reactor/ReActor_logo_NEW_EN.png?raw=true" alt="logo" width="180px"/>
 
-  ![Version](https://img.shields.io/badge/node_version-0.5.0_beta4-green?style=for-the-badge&labelColor=darkgreen)
+  ![Version](https://img.shields.io/badge/node_version-0.5.2_beta1-green?style=for-the-badge&labelColor=darkgreen)
 
-  <sup>
+  <!--<sup>
   <font color=brightred>
 
   ## !!! [Important Update](#latestupdate) !!!<br>Don't forget to add the Node again in existing workflows
   
   </font>
-  </sup>
+  </sup>-->
   
   <a href="https://boosty.to/artgourieff" target="_blank">
-    <img src="https://lovemet.ru/www/boosty.jpg" width="108" alt="Support Me on Boosty"/>
+    <img src="https://lovemet.ru/img/boosty.jpg" width="108" alt="Support Me on Boosty"/>
     <br>
     <sup>
       Support This Project
@@ -55,6 +55,51 @@
 
 ## What's new in the latest update
 
+### 0.5.2 <sub><sup>BETA1</sup></sub>
+
+- ReSwapper models support. Although Inswapper still has the best similarity, but ReSwapper is evolving - thanks @somanchiu https://github.com/somanchiu/ReSwapper for the ReSwapper models and the ReSwapper project! This is a good step for the Community in the Inswapper's alternative creation!
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.2-whatsnew-03.jpg?raw=true" alt="0.5.2-whatsnew-03" width="100%"/>
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.2-whatsnew-04.jpg?raw=true" alt="0.5.2-whatsnew-04" width="100%"/>
+
+You can download ReSwapper models here:
+https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models<br>
+Just put them into the "models/reswapper" directory.
+
+### 0.5.2 <sub><sup>ALPHA1</sup></sub>
+
+- New node "Unload ReActor Models" - is useful for complex WFs when you need to free some VRAM utilized by ReActor
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.2-whatsnew-01.jpg?raw=true" alt="0.5.2-whatsnew-01" width="100%"/>
+
+- Support of ORT CoreML and ROCM EPs, just install onnxruntime version you need
+- Install script improvements to install latest versions of ORT-GPU
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.2-whatsnew-02.jpg?raw=true" alt="0.5.2-whatsnew-02" width="100%"/>
+
+<details>
+	<summary><a>Previous versions</a></summary>
+
+### 0.5.1
+
+- Support of GPEN 1024/2048 restoration models (available in the HF dataset https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/facerestore_models)
+- ReActorFaceBoost Node - an attempt to improve the quality of swapped faces. The idea is to restore and scale the swapped face (according to the `face_size` parameter of the restoration model) BEFORE pasting it to the target image (via inswapper algorithms), more information is [here (PR#321)](https://github.com/Gourieff/comfyui-reactor-node/pull/321)
+
+<img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.1-whatsnew-01.jpg?raw=true" alt="0.5.1-whatsnew-01" width="100%"/>
+
+[Full size demo preview](https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.1-whatsnew-02.png)
+
+- Sorting facemodels alphabetically
+- A lot of fixes and improvements
+
+### [0.5.0 <sub><sup>BETA4</sup></sub>](https://github.com/Gourieff/comfyui-reactor-node/releases/tag/v0.5.0)
+
+- Spandrel lib support for GFPGAN
+
+### 0.5.0 <sub><sup>BETA3</sup></sub>
+
+- Fixes: "RAM issue", "No detection" for MaskingHelper
+
 ### 0.5.0 <sub><sup>BETA2</sup></sub>
 
 - You can now build a blended face model from a batch of face models you already have, just add the "Make Face Model Batch" node to your workflow and connect several models via "Load Face Model"
@@ -94,9 +139,6 @@ Use this Node to gain the best results of the face swapping process:
 <img src="https://github.com/Gourieff/Assets/blob/main/comfyui-reactor-node/0.5.0-whatsnew-04.jpg?raw=true" alt="0.5.0-whatsnew-04" width="100%"/>
 
 - Little speed boost when analyzing target images (unfortunately it is still quite slow in compare to swapping and restoring...)
-
-<details>
-	<summary><a>Previous versions</a></summary>
 
 ### [0.4.2](https://github.com/Gourieff/comfyui-reactor-node/releases/tag/v0.4.2)
 
@@ -193,8 +235,8 @@ https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/facerestore_mo
    - (Manually) Go to `ComfyUI\custom_nodes`, open Console and run `git clone https://github.com/Gourieff/comfyui-reactor-node`
 3. Go to `ComfyUI\custom_nodes\comfyui-reactor-node` and run `install.bat`
 4. If you don't have the "face_yolov8m.pt" Ultralytics model - you can download it from the [Assets](https://huggingface.co/datasets/Gourieff/ReActor/blob/main/models/detection/bbox/face_yolov8m.pt) and put it into the "ComfyUI\models\ultralytics\bbox" directory
-<br>
-As well as one or both of "Sams" models from [here](https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/sams) - download (if you don't have them) and put into the "ComfyUI\models\sams" directory
+<br>As well as one or both of "Sams" models from [here](https://huggingface.co/datasets/Gourieff/ReActor/tree/main/models/sams) - download (if you don't have them) and put into the "ComfyUI\models\sams" directory
+
 5. Run ComfyUI and find there ReActor Nodes inside the menu `ReActor` or by using a search
 
 </details>
@@ -208,6 +250,7 @@ List of Nodes:
    - ReActorFaceSwap (Main Node)
    - ReActorFaceSwapOpt (Main Node with the additional Options input)
    - ReActorOptions (Options for ReActorFaceSwapOpt)
+   - ReActorFaceBoost (Face Booster Node)
    - ReActorMaskHelper (Masking Helper)
 - ••• Operations with Face Models •••
   - ReActorSaveFaceModel (Save Face Model)

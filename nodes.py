@@ -32,6 +32,9 @@ from scripts.reactor_faceswap import (
     half_det_size,
     providers
 )
+from scripts.reactor_swapper import (
+    unload_all_models,
+)
 from scripts.reactor_logger import logger
 from reactor_utils import (
     batch_tensor_to_pil,
@@ -71,6 +74,8 @@ os.makedirs(dir_facerestore_models, exist_ok=True)
 folder_paths.folder_names_and_paths["facerestore_models"] = ([dir_facerestore_models], folder_paths.supported_pt_extensions)
 
 BLENDED_FACE_MODEL = None
+FACE_SIZE: int = 512
+FACE_HELPER = None
 
 if "ultralytics" not in folder_paths.folder_names_and_paths:
     add_folder_path_and_extensions("ultralytics_bbox", [os.path.join(models_dir, "ultralytics", "bbox")], folder_paths.supported_pt_extensions)
@@ -94,7 +99,9 @@ def get_restorers():
             "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GFPGANv1.3.pth",
             "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GFPGANv1.4.pth",
             "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/codeformer-v0.1.0.pth",
-            "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GPEN-BFR-512.onnx"
+            "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GPEN-BFR-512.onnx",
+            "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GPEN-BFR-1024.onnx",
+            "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/facerestore_models/GPEN-BFR-2048.onnx",
         ]
         for model_url in fr_urls:
             model_name = os.path.basename(model_url)
@@ -106,9 +113,11 @@ def get_restorers():
 
 def get_model_names(get_models):
     models = get_models()
-    names = ["none"]
+    names = []
     for x in models:
         names.append(os.path.basename(x))
+    names.sort(key=str.lower)
+    names.insert(0, "none")
     return names
 
 def model_names():
@@ -137,6 +146,7 @@ class reactor:
             "optional": {
                 "source_image": ("IMAGE",),
                 "face_model": ("FACE_MODEL",),
+                "face_boost": ("FACE_BOOST",),
             },
             "hidden": {"faces_order": "FACES_ORDER"},
         }
@@ -146,8 +156,15 @@ class reactor:
     CATEGORY = "🌌 ReActor"
 
     def __init__(self):
-        self.face_helper = None
+        # self.face_helper = None
         self.faces_order = ["large-small", "large-small"]
+        # self.face_size = FACE_SIZE
+        self.face_boost_enabled = False
+        self.restore = True
+        self.boost_model = None
+        self.interpolation = "Bicubic"
+        self.boost_model_visibility = 1
+        self.boost_cf_weight = 0.5
 
     def restore_face(
             self,
@@ -155,21 +172,31 @@ class reactor:
             face_restore_model,
             face_restore_visibility,
             codeformer_weight,
-            facedetection
+            facedetection,
         ):
 
         result = input_image
 
         if face_restore_model != "none" and not model_management.processing_interrupted():
 
-            logger.status(f"Restoring with {face_restore_model}")
+            global FACE_SIZE, FACE_HELPER
+
+            self.face_helper = FACE_HELPER
+            
+            faceSize = 512
+            if "1024" in face_restore_model.lower():
+                faceSize = 1024
+            elif "2048" in face_restore_model.lower():
+                faceSize = 2048
+
+            logger.status(f"Restoring with {face_restore_model} | Face Size is set to {faceSize}")
 
             model_path = folder_paths.get_full_path("facerestore_models", face_restore_model)
 
             device = model_management.get_torch_device()
 
             if "codeformer" in face_restore_model.lower():
-                
+
                 codeformer_net = ARCH_REGISTRY.get("CodeFormer")(
                     dim_embd=512,
                     codebook_size=1024,
@@ -180,7 +207,7 @@ class reactor:
                 checkpoint = torch.load(model_path)["params_ema"]
                 codeformer_net.load_state_dict(checkpoint)
                 facerestore_model = codeformer_net.eval()
-            
+
             elif ".onnx" in face_restore_model:
 
                 ort_session = set_ort_session(model_path, providers=providers)
@@ -193,35 +220,16 @@ class reactor:
                 facerestore_model = model_loading.load_state_dict(sd).eval()
                 facerestore_model.to(device)
             
-            if self.face_helper is None:
-                self.face_helper = FaceRestoreHelper(1, face_size=512, crop_ratio=(1, 1), det_model=facedetection, save_ext='png', use_parse=True, device=device)
+            if faceSize != FACE_SIZE or self.face_helper is None:
+                self.face_helper = FaceRestoreHelper(1, face_size=faceSize, crop_ratio=(1, 1), det_model=facedetection, save_ext='png', use_parse=True, device=device)
+                FACE_SIZE = faceSize
+                FACE_HELPER = self.face_helper
 
-            # print(f"result = {result.dtype}")
-            # image_np = 255. * result.cpu().numpy()
             image_np = 255. * result.numpy()
 
             total_images = image_np.shape[0]
 
             out_images = []
-
-            # try:
-            #     out_images = np.ndarray(shape=image_np.shape)
-            # except:
-            #     logger.error("Not enough RAM - Reducing data type to float32")
-            #     logger.info("Data type is set to 'float32'")
-            #     try:
-            #         logger.status("Trying again...")
-            #         out_images = np.ndarray(shape=image_np.shape, dtype=np.float32)
-            #     except:
-            #         logger.error("Not enough RAM - Reducing data type to float16")
-            #         logger.info("Data type is set to 'float16'")
-            #         try:
-            #             logger.status("Trying again...")
-            #             out_images = np.ndarray(shape=image_np.shape, dtype=np.float16)
-            #         except Exception as e:
-            #             logger.error("Not enough RAM, canceling...")
-            #             logger.status(f"Interrupted with Exception: {e}")
-            #             return result
 
             for i in range(total_images):
 
@@ -241,7 +249,7 @@ class reactor:
                 self.face_helper.align_warp_face()
 
                 restored_face = None
-                
+
                 for idx, cropped_face in enumerate(self.face_helper.cropped_faces):
 
                     # if ".pth" in face_restore_model:
@@ -250,11 +258,11 @@ class reactor:
                     cropped_face_t = cropped_face_t.unsqueeze(0).to(device)
 
                     try:
-                        
+
                         with torch.no_grad():
 
                             if ".onnx" in face_restore_model: # ONNX models
-                                
+
                                 for ort_session_input in ort_session.get_inputs():
                                     if ort_session_input.name == "input":
                                         cropped_face_prep = prepare_cropped_face(cropped_face)
@@ -262,7 +270,7 @@ class reactor:
                                     if ort_session_input.name == "weight":
                                         weight = np.array([ 1 ], dtype = np.double)
                                         ort_session_inputs[ort_session_input.name] = weight
-                                
+
                                 output = ort_session.run(None, ort_session_inputs)[0][0]
                                 restored_face = normalize_cropped_face(output)
 
@@ -273,7 +281,7 @@ class reactor:
 
                         del output
                         torch.cuda.empty_cache()
-                   
+
                     except Exception as error:
 
                         print(f"\tFailed inference: {error}", file=sys.stderr)
@@ -291,7 +299,7 @@ class reactor:
                 restored_img = restored_img[:, :, ::-1]
 
                 if original_resolution != restored_img.shape[0:2]:
-                    restored_img = cv2.resize(restored_img, (0, 0), fx=original_resolution[1]/restored_img.shape[1], fy=original_resolution[0]/restored_img.shape[0], interpolation=cv2.INTER_LINEAR)
+                    restored_img = cv2.resize(restored_img, (0, 0), fx=original_resolution[1]/restored_img.shape[1], fy=original_resolution[0]/restored_img.shape[0], interpolation=cv2.INTER_AREA)
 
                 self.face_helper.clean_all()
 
@@ -308,8 +316,18 @@ class reactor:
             result = restored_img_tensor
 
         return result
+    
+    def execute(self, enabled, input_image, swap_model, detect_gender_source, detect_gender_input, source_faces_index, input_faces_index, console_log_level, face_restore_model,face_restore_visibility, codeformer_weight, facedetection, source_image=None, face_model=None, faces_order=None, face_boost=None):
 
-    def execute(self, enabled, input_image, swap_model, detect_gender_source, detect_gender_input, source_faces_index, input_faces_index, console_log_level, face_restore_model, face_restore_visibility, codeformer_weight, facedetection, source_image=None, face_model=None, faces_order=None):
+        if face_boost is not None:
+            self.face_boost_enabled = face_boost["enabled"]
+            self.boost_model = face_boost["boost_model"]
+            self.interpolation = face_boost["interpolation"]
+            self.boost_model_visibility = face_boost["visibility"]
+            self.boost_cf_weight = face_boost["codeformer_weight"]
+            self.restore = face_boost["restore_with_main_after"]
+        else:
+            self.face_boost_enabled = False
 
         if faces_order is None:
             faces_order = self.faces_order
@@ -345,6 +363,12 @@ class reactor:
             gender_target=detect_gender_input,
             face_model=face_model,
             faces_order=faces_order,
+            # face boost:
+            face_boost_enabled=self.face_boost_enabled,
+            face_restore_model=self.boost_model,
+            face_restore_visibility=self.boost_model_visibility,
+            codeformer_weight=self.boost_cf_weight,
+            interpolation=self.interpolation,
         )
         result = batched_pil_to_tensor(p.init_images)
 
@@ -353,8 +377,9 @@ class reactor:
             face_model_to_provide = current_face_model[0] if (current_face_model is not None and len(current_face_model) > 0) else face_model
         else:
             face_model_to_provide = face_model
-        
-        result = reactor.restore_face(self,result,face_restore_model,face_restore_visibility,codeformer_weight,facedetection)
+
+        if self.restore or not self.face_boost_enabled:
+            result = reactor.restore_face(self,result,face_restore_model,face_restore_visibility,codeformer_weight,facedetection)
 
         return (result,face_model_to_provide)
 
@@ -376,6 +401,7 @@ class ReActorPlusOpt:
                 "source_image": ("IMAGE",),
                 "face_model": ("FACE_MODEL",),
                 "options": ("OPTIONS",),
+                "face_boost": ("FACE_BOOST",),
             }
         }
 
@@ -384,15 +410,22 @@ class ReActorPlusOpt:
     CATEGORY = "🌌 ReActor"
 
     def __init__(self):
-        self.face_helper = None
+        # self.face_helper = None
         self.faces_order = ["large-small", "large-small"]
         self.detect_gender_input = "no"
         self.detect_gender_source = "no"
         self.input_faces_index = "0"
         self.source_faces_index = "0"
         self.console_log_level = 1
+        # self.face_size = 512
+        self.face_boost_enabled = False
+        self.restore = True
+        self.boost_model = None
+        self.interpolation = "Bicubic"
+        self.boost_model_visibility = 1
+        self.boost_cf_weight = 0.5
     
-    def execute(self, enabled, input_image, swap_model, facedetection, face_restore_model, face_restore_visibility, codeformer_weight, source_image=None, face_model=None, options=None):
+    def execute(self, enabled, input_image, swap_model, facedetection, face_restore_model, face_restore_visibility, codeformer_weight, source_image=None, face_model=None, options=None, face_boost=None):
 
         if options is not None:
             self.faces_order = [options["input_faces_order"], options["source_faces_order"]]
@@ -402,8 +435,14 @@ class ReActorPlusOpt:
             self.input_faces_index = options["input_faces_index"]
             self.source_faces_index = options["source_faces_index"]
         
+        if face_boost is not None:
+            self.face_boost_enabled = face_boost["enabled"]
+            self.restore = face_boost["restore_with_main_after"]
+        else:
+            self.face_boost_enabled = False
+        
         result = reactor.execute(
-            self,enabled,input_image,swap_model,self.detect_gender_source,self.detect_gender_input,self.source_faces_index,self.input_faces_index,self.console_log_level,face_restore_model,face_restore_visibility,codeformer_weight,facedetection,source_image,face_model,self.faces_order
+            self,enabled,input_image,swap_model,self.detect_gender_source,self.detect_gender_input,self.source_faces_index,self.input_faces_index,self.console_log_level,face_restore_model,face_restore_visibility,codeformer_weight,facedetection,source_image,face_model,self.faces_order, face_boost=face_boost
         )
 
         return result
@@ -630,8 +669,9 @@ class RestoreFace:
     FUNCTION = "execute"
     CATEGORY = "🌌 ReActor"
 
-    def __init__(self):
-        self.face_helper = None
+    # def __init__(self):
+    #     self.face_helper = None
+    #     self.face_size = 512
 
     def execute(self, image, model, visibility, codeformer_weight, facedetection):
         result = reactor.restore_face(self,image,model,visibility,codeformer_weight,facedetection)
@@ -1111,11 +1151,59 @@ class ReActorOptions:
         return (options, )
 
 
+class ReActorFaceBoost:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "enabled": ("BOOLEAN", {"default": True, "label_off": "OFF", "label_on": "ON"}),
+                "boost_model": (get_model_names(get_restorers),),
+                "interpolation": (["Nearest","Bilinear","Bicubic","Lanczos"], {"default": "Bicubic"}),
+                "visibility": ("FLOAT", {"default": 1, "min": 0.1, "max": 1, "step": 0.05}),
+                "codeformer_weight": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1, "step": 0.05}),
+                "restore_with_main_after": ("BOOLEAN", {"default": False}),
+            }
+        }
+
+    RETURN_TYPES = ("FACE_BOOST",)
+    FUNCTION = "execute"
+    CATEGORY = "🌌 ReActor"
+
+    def execute(self,enabled,boost_model,interpolation,visibility,codeformer_weight,restore_with_main_after):
+        face_boost: dict = {
+            "enabled": enabled,
+            "boost_model": boost_model,
+            "interpolation": interpolation,
+            "visibility": visibility,
+            "codeformer_weight": codeformer_weight,
+            "restore_with_main_after": restore_with_main_after,
+        }
+        return (face_boost, )
+    
+class ReActorUnload:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "trigger": ("IMAGE", ),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "execute"
+    CATEGORY = "🌌 ReActor"
+
+    def execute(self, trigger):
+        unload_all_models()
+        return (trigger,)
+
+
 NODE_CLASS_MAPPINGS = {
     # --- MAIN NODES ---
     "ReActorFaceSwap": reactor,
     "ReActorFaceSwapOpt": ReActorPlusOpt,
     "ReActorOptions": ReActorOptions,
+    "ReActorFaceBoost": ReActorFaceBoost,
     "ReActorMaskHelper": MaskHelper,
     # --- Operations with Face Models ---
     "ReActorSaveFaceModel": SaveFaceModel,
@@ -1126,6 +1214,7 @@ NODE_CLASS_MAPPINGS = {
     "ReActorRestoreFace": RestoreFace,
     "ReActorImageDublicator": ImageDublicator,
     "ImageRGBA2RGB": ImageRGBA2RGB,
+    "ReActorUnload": ReActorUnload,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1133,6 +1222,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ReActorFaceSwap": "ReActor 🌌 Fast Face Swap",
     "ReActorFaceSwapOpt": "ReActor 🌌 Fast Face Swap [OPTIONS]",
     "ReActorOptions": "ReActor 🌌 Options",
+    "ReActorFaceBoost": "ReActor 🌌 Face Booster",
     "ReActorMaskHelper": "ReActor 🌌 Masking Helper",
     # --- Operations with Face Models ---
     "ReActorSaveFaceModel": "Save Face Model 🌌 ReActor",
@@ -1143,4 +1233,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ReActorRestoreFace": "Restore Face 🌌 ReActor",
     "ReActorImageDublicator": "Image Dublicator (List) 🌌 ReActor",
     "ImageRGBA2RGB": "Convert RGBA to RGB 🌌 ReActor",
+    "ReActorUnload": "Unload ReActor Models 🌌 ReActor",
 }
